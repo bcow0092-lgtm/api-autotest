@@ -15,12 +15,9 @@ def test_skill_utils_is_importable():
 
 def test_no_third_party_imports_in_skill_utils():
     import ast
+    import sys
 
-    stdlib_ok = {
-        "argparse", "ast", "dataclasses", "datetime", "json", "os", "pathlib",
-        "re", "sqlite3", "sys", "typing", "urllib", "collections", "shutil",
-        "subprocess", "tempfile", "textwrap", "unicodedata",
-    }
+    allowed = set(sys.stdlib_module_names) | {"__future__", "skill_utils"}
     offenders = []
     for py in (ROOT / "skill_utils").glob("*.py"):
         tree = ast.parse(py.read_text(encoding="utf-8"))
@@ -28,10 +25,12 @@ def test_no_third_party_imports_in_skill_utils():
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     top = alias.name.split(".")[0]
-                    if top not in stdlib_ok and top != "skill_utils":
+                    if top not in allowed:
                         offenders.append(f"{py.name}: {alias.name}")
             elif isinstance(node, ast.ImportFrom):
+                if node.level:  # 相对导入（from .x import y），不是第三方依赖
+                    continue
                 top = (node.module or "").split(".")[0]
-                if top and top not in stdlib_ok and top != "skill_utils":
+                if top and top not in allowed:
                     offenders.append(f"{py.name}: {node.module}")
     assert offenders == [], f"发现第三方依赖: {offenders}"
