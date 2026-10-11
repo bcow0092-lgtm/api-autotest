@@ -8,16 +8,16 @@ def test_parse_file_extracts_url_method_and_metadata(tmp_path):
     sample = tmp_path / "sample_api.py"
     sample.write_text(
         '''
-class EsbApi:
-    def action_getLightActionFLowList(self, ETEAMSID, **kwargs):
+class SampleApi:
+    def get_template_by_module_id(self, session_token, **kwargs):
         """
-        esb中心-动作流-新建动作流-根据模块id获取动作流模板
-        :param ETEAMSID:
+        示例接口-按模块 id 查询模板
+        :param session_token:
         :return:
         """
-        # Author: liuxin
-        # Create Date: 2025-08-13
-        url = 'https://{0}/api/bs/esb/setting/flow/design/getLightActionFLowList'.format(self.base_url)
+        # Author: tester
+        # Create Date: 2026-06-01
+        url = 'https://{0}/api/sample/templates/template'.format(self.base_url)
         response = requests.request("GET", url)
         return response.json()
 '''.strip(),
@@ -27,10 +27,10 @@ class EsbApi:
     records = scan_api_methods._parse_file(str(sample))
 
     assert len(records) == 1
-    assert records[0]["pure_path"] == "/api/bs/esb/setting/flow/design/getLightActionFLowList"
-    assert records[0]["api_desc"] == "esb中心-动作流-新建动作流-根据模块id获取动作流模板"
-    assert records[0]["author"] == "liuxin"
-    assert records[0]["create_date"] == "2025-08-13"
+    assert records[0]["pure_path"] == "/api/sample/templates/template"
+    assert records[0]["api_desc"] == "示例接口-按模块 id 查询模板"
+    assert records[0]["author"] == "tester"
+    assert records[0]["create_date"] == "2026-06-01"
     assert records[0]["http_method"] == "GET"
 
 
@@ -38,15 +38,15 @@ def test_parse_file_strips_desc_prefix_and_reads_def_name(tmp_path):
     sample = tmp_path / "sample_api.py"
     sample.write_text(
         '''
-class DwApi:
-    def getDatasetAndDataGroupsByGroupIdAndPage_dataDevelopmentGroup(self, ETEAMSID):
+class OtherApi:
+    def query_dataset_groups_by_page(self, session_token):
         """
-        desc: 数据开发-查询所有数据开发数据集 以及文件夹-不分页
-        entrace: 数据开发->分组点击查询
+        desc: 示例接口-分页查询数据集分组
+        entry: 示例入口
         """
-        # Author: qiumingwu
-        # Create Date: 2023-09-19
-        url = f'https://{self.base_url}/api/dw/dataDevelopmentGroup/getDatasetAndDataGroupsByGroupIdAndPage'
+        # Author: tester
+        # Create Date: 2026-06-02
+        url = f'https://{self.base_url}/api/sample/dataset/groups/page'
         response = requests.request("POST", url)
         return response.json()
 '''.strip(),
@@ -55,9 +55,9 @@ class DwApi:
 
     records = scan_api_methods._parse_file(str(sample))
 
-    assert records[0]["pure_path"] == "/api/dw/dataDevelopmentGroup/getDatasetAndDataGroupsByGroupIdAndPage"
-    assert records[0]["api_desc"] == "数据开发-查询所有数据开发数据集 以及文件夹-不分页"
-    assert records[0]["api_name"] == "getDatasetAndDataGroupsByGroupIdAndPage_dataDevelopmentGroup"
+    assert records[0]["pure_path"] == "/api/sample/dataset/groups/page"
+    assert records[0]["api_desc"] == "示例接口-分页查询数据集分组"
+    assert records[0]["api_name"] == "query_dataset_groups_by_page"
     assert records[0]["http_method"] == "POST"
 
 
@@ -279,3 +279,69 @@ class UserApi:
     assert exit_code == 0
     assert not db_path.exists()
     assert "1" in capsys.readouterr().out
+
+
+def test_scan_all_skips_unreadable_file_and_warns(tmp_path):
+    """一个非 UTF-8 文件不得中断整轮扫描，应跳过该文件并发出警告。"""
+    project = tmp_path / "project"
+    api_dir = project / "api"
+    api_dir.mkdir(parents=True)
+    (api_dir / "good_api.py").write_text(
+        '''
+import requests
+
+
+class GoodApi:
+    def create_user(self):
+        """创建用户"""
+        url = "/api/users/create"
+        return requests.post(url, json={})
+'''.strip(),
+        encoding="utf-8",
+    )
+    (api_dir / "broken_api.py").write_bytes(b"\xff\xfe\x00\x01 not utf-8")
+
+    warnings = []
+    records, scanned = scan_api_methods._scan_all(
+        str(project), [str(api_dir)], on_warn=warnings.append
+    )
+
+    assert scanned == 2
+    assert len(records) == 1
+    assert records[0]["api_url"] == "/api/users/create"
+    assert records[0]["http_method"] == "POST"
+    assert warnings
+    assert "broken_api.py" in warnings[0]
+
+
+def test_main_warns_on_dynamic_leading_path_segment(tmp_path, capsys):
+    """URL 由无 scheme 的变量拼接时首段会成为 {param}，main 必须响亮警告而非静默。"""
+    project = tmp_path / "project"
+    api_dir = project / "api"
+    api_dir.mkdir(parents=True)
+    (api_dir / "composed_api.py").write_text(
+        '''
+class ComposedApi:
+    def create(self, session, payload):
+        """创建资源"""
+        url = f"{BASE_URL}/api/x"
+        return session.post(url, json=payload)
+'''.strip(),
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "project_root": str(project),
+                "paths": {"api_method_dirs": ["api"], "pytest_workdir": "."},
+                "api_index": {"scan_dirs": ["api"]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = scan_api_methods.main(["--config", str(config_path), "--dry-run"])
+
+    assert exit_code == 0
+    assert "动态变量" in capsys.readouterr().err

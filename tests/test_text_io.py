@@ -45,3 +45,11 @@ def test_looks_mojibake():
     assert looks_mojibake("正常中文文本") is False
     assert looks_mojibake("?????") is True
     assert looks_mojibake("broken � text") is True
+
+
+def test_text_io_source_uses_escapes_not_raw_invisible_chars():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "skill_utils" / "text_io.py").read_text(encoding="utf-8")
+    assert "\ufeff" not in source
+    assert "\ufffd" not in source

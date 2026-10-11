@@ -9,8 +9,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-BOM_UTF8 = "﻿"
-_REPLACEMENT_CHAR = "�"
+# 本模块专职处理 BOM / 乱码，守卫常量必须写成转义序列而非裸不可见字符：
+# 裸字符一旦被格式化工具或复制粘贴剥掉，has_bom() 会对一切返回 False、
+# looks_mojibake 会丢失一个标记，而且静默无提示。
+BOM_UTF8 = "\ufeff"
+_REPLACEMENT_CHAR = "\ufffd"
 _MOJIBAKE_MARKERS = (_REPLACEMENT_CHAR, "ï¿½", "锟斤拷")
 
 

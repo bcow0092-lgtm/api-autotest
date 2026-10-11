@@ -16,7 +16,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .project_locator import CONFIG_DIR_NAME, find_config
+from .project_locator import CONFIG_DIR_NAME, find_config, missing_config_guidance
 
 DEFAULT_FRAMEWORK = "pytest_requests"
 DEFAULT_PYTHONPATH = "."
@@ -97,8 +97,8 @@ def _resolve_default_config_path() -> Path:
     found = find_config(Path.cwd())
     if found is None:
         raise ConfigError(
-            f"当前目录及其上级都不存在 {CONFIG_DIR_NAME}/config.json。"
-            f"请先运行 tools/init_project.py 接入本项目。"
+            f"当前目录及其上级都不存在 {CONFIG_DIR_NAME}/config.json。\n"
+            + missing_config_guidance(Path.cwd())
         )
     return found
 

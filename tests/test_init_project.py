@@ -104,3 +104,51 @@ def test_init_project_rejects_missing_baseurl(tmp_path):
         assert "baseurl" in str(exc)
     else:
         raise AssertionError("缺少 baseurl 应当抛 ValueError")
+
+
+def _answers(baseurl: str) -> dict:
+    return {
+        "baseurl": baseurl,
+        "api_method_dirs": ["test/API_TEST/api"],
+        "test_case_dirs": ["test/API_TEST/cases"],
+        "pytest_workdir": "test/API_TEST",
+        "runtime_temp_dir": "test/API_TEST/.tmp",
+    }
+
+
+def test_init_project_rerun_preserves_hand_edited_config(tmp_path):
+    """重跑接入引导不得静默覆盖用户手改过的 config.json。"""
+    root = _java_project(tmp_path)
+    answers = _answers("http://localhost:8081")
+    init_project(root, answers)
+
+    config_path = root / ".api-autotest" / "config.json"
+    edited = json.loads(config_path.read_text(encoding="utf-8"))
+    edited["capture"]["baseurl"] = "http://edited.example:9999"
+    edited["capture"]["include_prefixes"] = ["/custom"]
+    config_path.write_text(json.dumps(edited, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    result = init_project(root, answers)
+
+    after = json.loads(config_path.read_text(encoding="utf-8"))
+    assert after["capture"]["baseurl"] == "http://edited.example:9999"
+    assert after["capture"]["include_prefixes"] == ["/custom"]
+    assert any("已存在" in w for w in result["warnings"])
+    assert result["created_dirs"] == []
+
+
+def test_init_project_rerun_with_force_overwrites_config(tmp_path):
+    """force=True 时按本次答案强制覆盖已存在的 config.json。"""
+    root = _java_project(tmp_path)
+    answers = _answers("http://localhost:8081")
+    init_project(root, answers)
+
+    config_path = root / ".api-autotest" / "config.json"
+    edited = json.loads(config_path.read_text(encoding="utf-8"))
+    edited["capture"]["baseurl"] = "http://edited.example:9999"
+    config_path.write_text(json.dumps(edited, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    init_project(root, answers, force=True)
+
+    after = json.loads(config_path.read_text(encoding="utf-8"))
+    assert after["capture"]["baseurl"] == "http://localhost:8081"

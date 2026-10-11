@@ -45,6 +45,11 @@ def api_session():
 
 REQUIRED_ANSWERS = ("baseurl",)
 
+_NO_RECORDS_WARNING = (
+    "扫到 0 条接口。绿地项目属正常；若非绿地，请检查 config.json 的 "
+    "api_index.scan_dirs 是否指向真正的接口方法层目录。"
+)
+
 
 def detect_project(project_root: str | Path) -> dict:
     """扫一遍项目结构，返回探测结果（不做任何写入）。"""
@@ -113,14 +118,22 @@ def build_config(project_root: str | Path, answers: dict) -> dict:
     return config
 
 
-def init_project(project_root: str | Path, answers: dict, *, dry_run: bool = False) -> dict:
-    """生成配置与骨架，并跑一次 dry-run 扫描自检。"""
+def init_project(
+    project_root: str | Path,
+    answers: dict,
+    *,
+    dry_run: bool = False,
+    force: bool = False,
+) -> dict:
+    """生成配置与骨架，并跑一次 dry-run 扫描自检。
+
+    配置已存在且 force=False 时视为“项目已接入过”：不写配置、不建目录、不重写
+    conftest（全程不碰用户文件），改用**现有**配置跑一次自检，并在 warnings 里说明。
+    需要按本次答案强制覆盖时传 force=True。dry_run 时一律不写任何文件。
+    """
     root = Path(project_root).resolve()
     config = build_config(root, answers)
     config_path = root / CONFIG_DIR_NAME / CONFIG_FILE_NAME
-
-    created_dirs: list[str] = []
-    warnings: list[str] = []
 
     if dry_run:
         return {
@@ -129,6 +142,25 @@ def init_project(project_root: str | Path, answers: dict, *, dry_run: bool = Fal
             "scanned_records": 0,
             "warnings": ["dry-run：未写入任何文件"],
         }
+
+    if config_path.is_file() and not force:
+        warnings = [
+            f"{CONFIG_DIR_NAME}/{CONFIG_FILE_NAME} 已存在，本次未做任何写入"
+            f"（不覆盖配置、不重建目录、不重写 conftest.py）。"
+            f"如需按本次答案强制覆盖，请加 --force 重新运行。"
+        ]
+        scanned_records = _self_check(config_path)
+        if not scanned_records:
+            warnings.append(_NO_RECORDS_WARNING)
+        return {
+            "config_path": str(config_path),
+            "created_dirs": [],
+            "scanned_records": scanned_records,
+            "warnings": warnings,
+        }
+
+    created_dirs: list[str] = []
+    warnings = []
 
     for relative in (
         list(config["paths"]["api_method_dirs"])
@@ -148,6 +180,20 @@ def init_project(project_root: str | Path, answers: dict, *, dry_run: bool = Fal
         conftest.parent.mkdir(parents=True, exist_ok=True)
         write_text_utf8(conftest, _render_conftest(config["capture"]["baseurl"]))
 
+    scanned_records = _self_check(config_path)
+    if not scanned_records:
+        warnings.append(_NO_RECORDS_WARNING)
+
+    return {
+        "config_path": str(config_path),
+        "created_dirs": created_dirs,
+        "scanned_records": scanned_records,
+        "warnings": warnings,
+    }
+
+
+def _self_check(config_path: Path) -> int:
+    """读取配置并跑一次内存扫描，返回扫到的接口条数（不写库、不落盘）。"""
     from skill_utils.config_loader import load_config
     from tools.scan_api_methods import _compile_rule, _scan_all, DEFAULT_METHOD_RULES, DEFAULT_URL_RULES
 
@@ -158,18 +204,7 @@ def init_project(project_root: str | Path, answers: dict, *, dry_run: bool = Fal
         url_rules=[_compile_rule(r) for r in DEFAULT_URL_RULES],
         method_rules=[_compile_rule(r) for r in DEFAULT_METHOD_RULES],
     )
-    if not records:
-        warnings.append(
-            "扫到 0 条接口。绿地项目属正常；若非绿地，请检查 config.json 的 "
-            "api_index.scan_dirs 是否指向真正的接口方法层目录。"
-        )
-
-    return {
-        "config_path": str(config_path),
-        "created_dirs": created_dirs,
-        "scanned_records": len(records),
-        "warnings": warnings,
-    }
+    return len(records)
 
 
 def _render_conftest(baseurl: str) -> str:
@@ -207,6 +242,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project-root", default=".", help="项目根目录（默认当前目录）")
     parser.add_argument("--answers", default=None, help="答案 JSON 文件（非交互运行）")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="配置已存在时按本次答案强制覆盖（默认不覆盖，只做自检）",
+    )
     args = parser.parse_args(argv)
 
     root = Path(args.project_root).resolve()
@@ -226,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        result = init_project(root, answers, dry_run=args.dry_run)
+        result = init_project(root, answers, dry_run=args.dry_run, force=args.force)
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2

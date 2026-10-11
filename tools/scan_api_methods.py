@@ -222,21 +222,30 @@ def _scan_all(
     scan_dirs: list[str],
     url_rules: list | None = None,
     method_rules: list | None = None,
+    on_warn=None,
 ) -> tuple[list[dict], int]:
-    """扫描多个目录下的全部 *.py，返回 (记录列表, 扫描文件数)。"""
+    """扫描多个目录下的全部 *.py，返回 (记录列表, 扫描文件数)。
+
+    单个文件读取失败（非 UTF-8 编码 / IO 错误）时**跳过该文件并继续**，不让一个坏文件
+    中断整轮扫描。on_warn 为 None 时静默跳过（维持原二元组返回契约）。
+    """
     records: list[dict] = []
     scanned = 0
     for scan_dir in scan_dirs:
         for py_file in sorted(Path(scan_dir).rglob("*.py")):
             scanned += 1
-            records.extend(
-                _parse_file(
+            try:
+                parsed = _parse_file(
                     str(py_file),
                     url_rules=url_rules,
                     method_rules=method_rules,
                     repo_root=repo_root,
                 )
-            )
+            except (UnicodeDecodeError, OSError) as exc:
+                if on_warn is not None:
+                    on_warn(f"跳过无法读取的文件 {py_file}: {exc}")
+                continue
+            records.extend(parsed)
     return records, scanned
 
 
@@ -265,7 +274,19 @@ def main(argv: list[str] | None = None) -> int:
         [str(d) for d in config.api_scan_dirs],
         url_rules=url_rules,
         method_rules=method_rules,
+        on_warn=lambda msg: print(msg, file=sys.stderr),
     )
+
+    # 优先级#4 的低成本缓解：把“静默的错误索引”变成“响亮的警告”。
+    # URL 由无 scheme 的变量拼成时（如 f"{BASE_URL}/api/users/create"），字面量里没有 ://，
+    # 整串会被当成路径，pure_path 首段落成 /{param}，永远匹配不到真实端点，且原先静默。
+    dynamic_lead = [r for r in records if str(r.get("pure_path") or "").startswith("/{param}")]
+    if dynamic_lead:
+        print(
+            f"WARN: 有 {len(dynamic_lead)} 条记录的路径首段是动态变量（形如 /{{param}}/...），"
+            f"可能因为 URL 由变量拼接而未被正确解析；请人工确认这些接口的 URL 写法。",
+            file=sys.stderr,
+        )
 
     if args.dry_run:
         print(f"[scan_api_methods] dry-run scanned={scanned_files} records={len(records)}")
