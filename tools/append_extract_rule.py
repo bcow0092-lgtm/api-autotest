@@ -35,7 +35,12 @@ def append_extract_rule(
 
     apply=False 时只预览（不写规则文件、不写库）；apply=True 时落盘并增量入库。
     """
-    merged = _merge_rule_files(read_text_utf8(_ensure_rules_file(rules_path)), rule_update)
+    if apply:
+        _ensure_rules_file(rules_path)
+
+    existing = read_text_utf8(rules_path) if Path(rules_path).is_file() else "{}"
+    merged = _merge_rule_files(existing, rule_update)
+
     if apply:
         write_text_utf8(rules_path, json.dumps(merged, ensure_ascii=False, indent=2) + "\n")
 

@@ -105,3 +105,32 @@ def test_apply_is_idempotent(tmp_path):
     )
 
     assert second["inserted"] == 0
+
+
+def test_preview_does_not_create_missing_rules_file(tmp_path):
+    project, api_dir, db_path, rules_path, rule = _setup(tmp_path)
+    rules_path.unlink()
+
+    preview = append_extract_rule(
+        repo_root=str(project), scan_dirs=[str(api_dir)], db_path=str(db_path),
+        rules_path=str(rules_path), rule_update=rule, apply=False,
+    )
+
+    assert not rules_path.exists()
+    assert preview["applied"] is False
+    assert preview["new_records"] == 1
+
+
+def test_apply_creates_rules_file_when_missing(tmp_path):
+    project, api_dir, db_path, rules_path, rule = _setup(tmp_path)
+    rules_path.unlink()
+
+    applied = append_extract_rule(
+        repo_root=str(project), scan_dirs=[str(api_dir)], db_path=str(db_path),
+        rules_path=str(rules_path), rule_update=rule, apply=True,
+    )
+
+    assert rules_path.is_file()
+    saved = json.loads(rules_path.read_text(encoding="utf-8"))
+    assert any(r["name"] == "path_assignment" for r in saved["url_extract_rules"])
+    assert applied["inserted"] == 1
