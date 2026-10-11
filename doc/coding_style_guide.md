@@ -128,6 +128,6 @@ def test_create_user(api_session, payload):
 
 - [ ] **风格对齐** —— 读过接口方法层和用例层里已有的同模块文件，本次新增的命名、文件组织、断言层级跟它们一致。
 - [ ] **接口查重** —— 走完查重链（`normalize_path` → `to_pure_path` → `find_by_path_method` → grep 路径片段），确认要写的接口与用例**在索引和代码里都不存在**。
-- [ ] **编码校验** —— 文件写为 **UTF-8 无 BOM、换行 `\n`**；写完用 `read_text_utf8()` 或重新 Read 确认中文正常显示，无 `???` 或 `` 乱码。
+- [ ] **编码校验** —— 文件写为 **UTF-8 无 BOM、换行 `\n`**；写完用 `read_text_utf8()` 或重新 Read 确认中文正常显示，没有乱码（替换字符或成串问号）。
 - [ ] **落点确认** —— 文件放在配置声明的 `paths.api_method_dirs` / `paths.test_case_dirs` 里，不是随手新建一个目录。
 - [ ] **登录态来源** —— 用例用的是项目既有的 `api_session` fixture，不是自己临时 `requests.post("/login")`。
