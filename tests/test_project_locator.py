@@ -34,3 +34,12 @@ def test_guidance_names_init_project(tmp_path):
     assert ".api-autotest" in text
     assert "config.json" in text
     assert "init_project.py" in text
+
+
+def test_guidance_gives_runnable_path(tmp_path):
+    from skill_utils.project_locator import SKILL_ROOT, missing_config_guidance
+
+    text = missing_config_guidance(tmp_path)
+
+    assert "<skill_root>" not in text
+    assert str(SKILL_ROOT / "tools" / "init_project.py") in text

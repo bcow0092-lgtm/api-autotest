@@ -12,7 +12,8 @@ from pathlib import Path
 CONFIG_DIR_NAME = ".api-autotest"
 CONFIG_FILE_NAME = "config.json"
 
-_SKILL_TOOLS_HINT = "<skill_root>/tools/init_project.py"
+SKILL_ROOT = Path(__file__).resolve().parents[1]
+_INIT_PROJECT_PATH = SKILL_ROOT / "tools" / "init_project.py"
 
 
 def find_config(start_dir: str | Path) -> Path | None:
@@ -38,6 +39,6 @@ def missing_config_guidance(start_dir: str | Path) -> str:
         f"未在 {where} 及其任何上级目录找到 "
         f"{CONFIG_DIR_NAME}/{CONFIG_FILE_NAME}。\n"
         f"这说明当前项目还没有接入 api-autotest。请先运行接入引导：\n\n"
-        f"    python {_SKILL_TOOLS_HINT}\n\n"
+        f"    python \"{_INIT_PROJECT_PATH}\"\n\n"
         f"它会探测项目结构、询问被测服务地址，并生成 {CONFIG_DIR_NAME}/{CONFIG_FILE_NAME}。"
     )
