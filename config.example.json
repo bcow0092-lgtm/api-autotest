@@ -1,0 +1,32 @@
+{
+  "project_root": "/absolute/path/to/your/project",
+  "framework": "pytest_requests",
+  "paths": {
+    "api_method_dirs": ["test/API_TEST/api"],
+    "test_case_dirs": ["test/API_TEST/cases"],
+    "pytest_workdir": "test/API_TEST",
+    "runtime_temp_dir": "test/API_TEST/.tmp"
+  },
+  "api_index": {
+    "db_path": "test/API_TEST/.index/api_index.sqlite3",
+    "scan_dirs": ["test/API_TEST/api"],
+    "extract_rules_path": "test/API_TEST/.index/extract_rules.json"
+  },
+  "pytest": {
+    "pythonpath": ".",
+    "command_template": "pytest {target} -v --tb=short"
+  },
+  "capture": {
+    "listen_port": 12138,
+    "baseurl": "http://localhost:8080",
+    "include_prefixes": ["/api"],
+    "exclude_prefixes": ["/static", "/favicon.ico"],
+    "login_path_hints": ["/login", "/auth/login"],
+    "session_cookie_names": []
+  },
+  "source_analysis": {
+    "language": "java",
+    "roots": ["src/main/java"],
+    "url_prefix_map": {}
+  }
+}
