@@ -10,14 +10,16 @@
 往上三层去找项目根是没有意义的（那是用户主目录）。所以项目结构**只能**由项目自己声明：
 
 - 项目根下放一份 **`.api-autotest/config.json`**，声明接口方法目录、用例目录、索引库路径等一切结构信息。
-- `skill_utils/project_locator.py` 的 `find_config()` 从**当前工作目录**逐级向上查找这份配置；
-  `find_project_root()` 返回包含它的目录。
+- `skill_utils/project_locator.py` 的 `find_config(Path.cwd())` 从**当前工作目录**逐级向上查找这份配置；
+  `find_project_root(Path.cwd())` 返回包含它的目录。
 - 找到配置后，`skill_utils/config_loader.py` 的 `load_config()` 负责读取、校验、并把配置里的**相对路径一律相对
-  `project_root` 解析**成绝对路径。
-- 找不到配置时，`missing_config_guidance()` 给出“先运行 `tools/init_project.py`”的指引，**停下，不要瞎跑**。
+  `project_root` 解析**成绝对路径（`load_config()` 可不传参，是这里唯一真正无参的入口，
+  内部会调用 `find_config(Path.cwd())` 定位配置）。
+- 找不到配置时，`missing_config_guidance(Path.cwd())` 给出“先运行 `tools/init_project.py`”的指引，**停下，不要瞎跑**。
 
-**禁止在任何文档、代码、示例里写死目录名**（如 `test/API_TEST`）。目录叫什么是项目的事，
-配置说了算。这就是本 skill 能被“任意项目”复用的前提。
+**禁止对目录名产生硬依赖**——即不允许“换个目录名就跑不起来”。为此，目录名不能写进代码逻辑、成为运行前提；
+出现 `test/API_TEST` 这类**示例默认值**并不违反本原则，违反的是把它当成必须存在的固定结构。
+目录叫什么是项目的事，配置说了算——这才是本 skill 能被“任意项目”复用的前提。
 
 ## 原则 2：写之前先查重
 

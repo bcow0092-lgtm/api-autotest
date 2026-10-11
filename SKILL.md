@@ -1,6 +1,6 @@
 ---
 name: api-autotest
-description: 通用接口自动化测试 skill，面向 python + pytest + requests。用于在任意项目中新增、维护接口测试方法与 pytest 用例：接入引导、接口索引与查重、抓包/源码/手工三种发现接口的方式、pytest 报错驱动的修复闭环。当用户说“给某个接口写自动化测试”“补接口用例”“接口回归”“接口测试报错帮我修”时使用。
+description: 通用接口自动化测试 skill，面向 python + pytest + requests。用于在任意项目中新增、维护接口测试方法与 pytest 用例：接入引导、接口索引与查重、抓包/源码/手工/参考已有用例四种发现接口的方式、pytest 报错驱动的修复闭环。当用户说“给某个接口写自动化测试”“补接口用例”“接口回归”“接口测试报错帮我修”时使用。
 ---
 
 # api-autotest
@@ -18,10 +18,11 @@ description: 通用接口自动化测试 skill，面向 python + pytest + reques
 
 主流程的第 0 步是**预检**，核心动作是定位配置：
 
-1. 用 `skill_utils/project_locator.py` 的 `find_config()` 从当前工作目录**逐级向上**查找 `.api-autotest/config.json`。
-2. **找到** → 用 `skill_utils/config_loader.py` 的 `load_config()` 读取并校验配置，继续主流程。
+1. 用 `skill_utils/project_locator.py` 的 `find_config(Path.cwd())` 从当前工作目录**逐级向上**查找 `.api-autotest/config.json`。
+2. **找到** → 用 `skill_utils/config_loader.py` 的 `load_config()` 读取并校验配置，继续主流程
+   （`load_config()` 可不传参，是本流程里唯一真正无参的入口，内部按上面方式定位配置）。
 3. **找不到** → **立即停止**。不要在无配置的情况下凭默认值瞎跑。把
-   `skill_utils/project_locator.py` 的 `missing_config_guidance()` 返回的指引原样交给用户，
+   `skill_utils/project_locator.py` 的 `missing_config_guidance(Path.cwd())` 返回的指引原样交给用户，
    告诉他先运行 `tools/init_project.py` 接入本项目（该脚本会探测项目结构、询问被测服务地址，并生成配置与最小骨架）。
 4. 找到配置后**检查索引时效**：索引记录里的 `last_seen` 若距今超过 7 天，提示用户先跑一次
    `tools/scan_api_methods.py` 刷新索引，再开始工作。
@@ -81,7 +82,8 @@ description: 通用接口自动化测试 skill，面向 python + pytest + reques
 - 全量重建：`tools/scan_api_methods.py --full`（清空后重写）
 - 增量更新：`tools/scan_api_methods.py`（已存在的端点只刷新 `last_seen`）
 - 只报条数不写库：`tools/scan_api_methods.py --dry-run`
-- 指定配置文件：三者都支持 `--config <路径>`（缺省时按 CWD 向上探测）
+- 指定配置文件：`tools/scan_api_methods.py` 的 `--config <路径>` 可缺省（省略时按 CWD 向上探测 `.api-autotest/config.json`）；
+  `tools/append_extract_rule.py` 的 `--config` 为必填；`tools/init_project.py` 没有 `--config`，用 `--project-root` 指定项目根。
 
 新增接口方法后，**必须**跑一次扫描把新接口补进索引（或让维护者知道索引已过期）。
 
@@ -132,7 +134,7 @@ cmd = build_pytest_command(
 
 | 工具 | 作用 | 关键参数 |
 |---|---|---|
-| `tools/init_project.py` | 接入引导：探测结构、生成配置与骨架 | `--project-root` / `--answers` / `--dry-run` |
+| `tools/init_project.py` | 接入引导：探测结构、生成配置与骨架 | `--project-root` / `--answers` / `--dry-run` / `--force` |
 | `tools/scan_api_methods.py` | 扫描接口方法层，更新索引 | `--config` / `--full` / `--dry-run` |
 | `tools/append_extract_rule.py` | 追加提取规则并按新规则重扫 | `--config` / `--rule` / `--apply` |
 
