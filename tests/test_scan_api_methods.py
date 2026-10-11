@@ -84,6 +84,33 @@ class GbifAPI:
     assert records[0]["http_method"] == "GET"
 
 
+def test_parse_file_supports_session_verb_style(tmp_path):
+    """接口层按文档写法接收登录好的 session 并调用 session.<verb> 时，扫描器必须识别。
+
+    这是 doc/coding_style_guide.md 与 doc/mode_curl_manual.md 推荐的写法。
+    若扫描器不认 session.<verb>(，新增接口会被静默漏扫（不报错），
+    导致索引少一条、下次查重查不到、进而重复实现。
+    """
+    sample = tmp_path / "user_api.py"
+    sample.write_text(
+        '''
+class UserApi:
+    def create_user(self, session, payload):
+        """创建用户"""
+        url = "/api/users/create"
+        return session.post(url, json=payload)
+'''.strip(),
+        encoding="utf-8",
+    )
+
+    records = scan_api_methods._parse_file(str(sample))
+
+    assert len(records) == 1
+    assert records[0]["api_url"] == "/api/users/create"
+    assert records[0]["http_method"] == "POST"
+    assert records[0]["api_name"] == "create_user"
+
+
 def test_load_and_apply_custom_extract_rules(tmp_path):
     rules_file = tmp_path / "api_extract_rules.json"
     rules_file.write_text(

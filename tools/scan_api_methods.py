@@ -44,6 +44,11 @@ DEFAULT_METHOD_RULES: list[dict] = [
     {"name": "requests_verb", "pattern": r"requests\.(get|post|put|delete|patch|head|options)\s*\(", "group": 1},
     {"name": "requests_request", "pattern": r"requests\.request\s*\(\s*['\"]([A-Za-z]+)['\"]", "group": 1},
     {"name": "client_request", "pattern": r"\.client\.request\s*\(\s*['\"]([A-Za-z]+)['\"]", "group": 1},
+    # 会话式调用：接口层常把登录好的 requests.Session 作为参数传入并调用 session.post(...)，
+    # 这是文档推荐的写法，必须能被识别，否则新接口会被静默漏扫（不报错，只在一条都扫不到时才 WARN）。
+    # 放在 client_request 之后、self_verb 之前：self.get(...) 仍由 self_verb 命中；
+    # 而 self.session.post(...) 里 self. 后面跟的是 session（非动词），self_verb 本就匹配不到。
+    {"name": "session_verb", "pattern": r"(?:self\.)?(?:session|client|http|api)\.(get|post|put|delete|patch|head|options)\s*\(", "group": 1},
     {"name": "self_verb", "pattern": r"self\.(get|post|put|delete|patch|head|options)\s*\(", "group": 1},
 ]
 
