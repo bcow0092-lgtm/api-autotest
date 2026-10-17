@@ -40,7 +40,7 @@ python "<skill>/tools/init_project.py" --project-root "<项目根>" --dry-run
 生成 `<项目根>/.api-autotest/config.json`、建好接口目录/用例目录，并放入一个带 `TODO`
 的 `conftest.py` 骨架（登录 fixture 因项目而异，需你自己按后端登录接口补全）。
 
-命令名与参数：`tools/init_project.py` 支持 `--project-root` / `--answers` / `--dry-run` / `--force`
+命令名与参数：`<skill>/tools/init_project.py` 支持 `--project-root` / `--answers` / `--dry-run` / `--force`
 （`--force` 用于按本次答案覆盖已存在的配置；不加时重跑只读现有配置做自检、**不覆盖**用户改动）。
 
 ### 第二步：编辑 `.api-autotest/config.json`
@@ -83,12 +83,12 @@ python -c "import sqlite3;c=sqlite3.connect(r'<项目根>/test/API_TEST/.index/a
 
 接入完成后，后续维护只需两件事：
 
-- **扫描**：接口方法层有新增后，跑 `tools/scan_api_methods.py`（不加 `--full` 即增量，
+- **扫描**：接口方法层有新增后，跑 `<skill>/tools/scan_api_methods.py`（不加 `--full` 即增量，
   已存在的端点只刷新 `last_seen`）。`--config` 可缺省：省略时按 CWD 向上探测
   `.api-autotest/config.json`；需要显式指定时用 `--config <配置>`。
-  （区分记法：`tools/append_extract_rule.py` 的 `--config` 为**必填**；
-  `tools/init_project.py` **没有** `--config`，用 `--project-root` 指定项目根。）
-- **扫描器认不出的 URL 写法**：用 `tools/append_extract_rule.py --config <配置> --rule <规则JSON>`
+  （区分记法：`<skill>/tools/append_extract_rule.py` 的 `--config` 为**必填**；
+  `<skill>/tools/init_project.py` **没有** `--config`，用 `--project-root` 指定项目根。）
+- **扫描器认不出的 URL 写法**：用 `<skill>/tools/append_extract_rule.py --config <配置> --rule <规则JSON>`
   先把新规则**预览**（不落盘、不落库），确认无误再加 `--apply` 落盘并增量入库。
 
 执行用例时**不要手写 pytest 命令**，用 `skill_utils/pytest_command.py` 的
@@ -122,7 +122,7 @@ python -c "import sqlite3;c=sqlite3.connect(r'<项目根>/test/API_TEST/.index/a
 | `capture.exclude_prefixes` | 排除这些前缀 | 抓包服务用（黑名单） |
 | `capture.login_path_hints` | 登录接口路径提示 | 命中即视为登录请求，默认不记录 |
 | `capture.session_cookie_names` | 会话 cookie 名 | 本版仅解析保留，暂未参与过滤 |
-| `source_analysis` | 源码分析配置（`language` / `roots` / `url_prefix_map`） | `tools/analyze_source.py` 用 |
+| `source_analysis` | 源码分析配置（`language` / `roots` / `url_prefix_map`） | `<skill>/tools/analyze_source.py` 用 |
 
 ## 版本管理建议
 
@@ -139,16 +139,16 @@ python -c "import sqlite3;c=sqlite3.connect(r'<项目根>/test/API_TEST/.index/a
 - **抓包驱动**（`capture/`）：用 mitmproxy 把真实 HTTP 请求录成 JSONL，再比对索引生成勾选草稿。
   启动 skill 目录里的 `capture/start.bat`（**在项目根目录执行、脚本用绝对路径**；
   端口来自 `capture.listen_port`，可用 `CAPTURE_PORT` 覆盖），
-  产物 `<runtime_temp_dir>/latest.jsonl`，比对用 `python tools/match_captures.py` →
-  `capture_selection.md`；服务状态用 `python tools/check_capture_server.py --config <配置>` 检查。
+  产物 `<runtime_temp_dir>/latest.jsonl`，比对用 `python "<skill>/tools/match_captures.py"` →
+  `capture_selection.md`；服务状态用 `python "<skill>/tools/check_capture_server.py" --config <配置>` 检查。
   详见 `doc/mode_capture_driven.md`。
 - **源码分析**（`analyzers/`）：支持 Java/Spring、Python（FastAPI/Flask/Django）、
-  Node（Express/NestJS），用 `python tools/analyze_source.py [--language ...] [--dry-run]`
+  Node（Express/NestJS），用 `python "<skill>/tools/analyze_source.py" [--language ...] [--dry-run]`
   成批导出接口，产物 `<runtime_temp_dir>/source_analysis_result.md`。详见 `doc/mode_source_analysis.md`。
 
 这两种方式产出的都是**待测接口清单草稿**——必须交给用户勾选后，才继续写用例（草稿门禁）。
 
-预检索引时效用 `python tools/preflight_check.py`（只读不写）。四种新增方式与工具速查见 `SKILL.md`。
+预检索引时效用 `python "<skill>/tools/preflight_check.py"`（只读不写）。四种新增方式与工具速查见 `SKILL.md`。
 
 ## 许可
 
