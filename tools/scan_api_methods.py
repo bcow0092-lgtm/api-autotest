@@ -22,6 +22,7 @@ if str(SKILL_ROOT) not in sys.path:
 from skill_utils.api_index_db import replace_index, upsert_many  # noqa: E402
 from skill_utils.api_path_match import normalize_path, to_pure_path  # noqa: E402
 from skill_utils.config_loader import ConfigError, load_config  # noqa: E402
+from skill_utils.console_io import configure_stdio  # noqa: E402
 from skill_utils.text_io import read_text_utf8  # noqa: E402
 
 # ---- 内置提取规则 ----------------------------------------------------------
@@ -256,6 +257,7 @@ def _resolve_scan_roots(config=None) -> tuple[str, list[str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_stdio()
     parser = argparse.ArgumentParser(description="扫描接口方法层并更新索引")
     parser.add_argument("--config", default=None, help="配置文件路径（默认按 CWD 向上探测）")
     parser.add_argument("--full", action="store_true", help="全量重建索引")

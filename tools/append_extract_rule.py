@@ -16,6 +16,7 @@ if str(SKILL_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILL_ROOT))
 
 from skill_utils.api_index_db import upsert_many  # noqa: E402
+from skill_utils.console_io import configure_stdio  # noqa: E402
 from skill_utils.text_io import read_text_utf8, write_text_utf8  # noqa: E402
 from tools.scan_api_methods import _compile_rule, _scan_all  # noqa: E402
 
@@ -89,6 +90,7 @@ def _rules_from_data(data: dict) -> tuple[list, list]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_stdio()
     parser = argparse.ArgumentParser(description="追加接口提取规则并按新规则重扫")
     parser.add_argument("--config", required=True)
     parser.add_argument("--rule", required=True, help="规则 JSON 文件（含 url_extract_rules / method_extract_rules）")

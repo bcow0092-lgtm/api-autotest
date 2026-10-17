@@ -15,6 +15,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 if str(SKILL_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILL_ROOT))
 
+from skill_utils.console_io import configure_stdio  # noqa: E402
 from skill_utils.project_locator import CONFIG_DIR_NAME, CONFIG_FILE_NAME, missing_config_guidance  # noqa: E402
 from skill_utils.text_io import read_text_utf8, write_text_utf8  # noqa: E402
 
@@ -238,6 +239,7 @@ def _prompt(question: str, default: str | None = None) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_stdio()
     parser = argparse.ArgumentParser(description="接入引导：生成 .api-autotest/config.json")
     parser.add_argument("--project-root", default=".", help="项目根目录（默认当前目录）")
     parser.add_argument("--answers", default=None, help="答案 JSON 文件（非交互运行）")
