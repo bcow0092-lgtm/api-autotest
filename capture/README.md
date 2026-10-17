@@ -12,28 +12,47 @@ pip install mitmproxy
 
 ## 端口
 
-监听端口取自项目配置 `config.capture.listen_port`（即
-`<project>/.api-autotest/config.json` 的 `capture.listen_port`）。
-可用环境变量 `CAPTURE_PORT` 临时覆盖：
+监听端口**来自项目配置** `config.capture.listen_port`（即
+`<project>/.api-autotest/config.json` 的 `capture.listen_port`）。三个启停脚本都委派给
+`capture/launch.py`，由它统一读配置、决定端口，所以改配置就能改实际监听端口：
+
+```
+python capture/launch.py start
+```
+
+端口优先级（`launch.py` 的 `resolve_port`）：
+
+1. 环境变量 `CAPTURE_PORT`（临时覆盖用）；
+2. 配置里的 `capture.listen_port`；
+3. 默认 `12138`。
+
+配置读不到时回落默认端口并打印告警，不会崩。
 
 ```
 set CAPTURE_PORT=8899
 start.bat
 ```
 
+> 配置沿**当前工作目录**向上查找 `.api-autotest/config.json`，所以请在**项目根目录**
+> 执行脚本（或先 `cd` 到项目根），否则会落到默认端口并告警。
+
 ## 启停
 
 | 脚本 | 作用 |
 | --- | --- |
-| `start.bat` | 前台启动 `mitmdump -s capture_addon.py --listen-port <端口>` |
-| `stop.bat` | 按端口查 `netstat` 找到监听进程并 `taskkill /F` |
-| `restart.bat` | 先 stop 再 start |
+| `start.bat` | 前台运行 `python launch.py start`（即 `mitmdump -s capture_addon.py --listen-port <端口>`） |
+| `stop.bat` | 运行 `python launch.py stop`：按端口查 `netstat` 找到监听进程并 `taskkill /F` |
+| `restart.bat` | 运行 `python launch.py restart`：先 stop 再 start |
 
 等价的手工命令：
 
 ```
-mitmdump -s capture_addon.py --listen-port <config.capture.listen_port>
+python capture/launch.py start
+python capture/launch.py stop
+python capture/launch.py restart
 ```
+
+底层仍是 `mitmdump -s capture_addon.py --listen-port <config.capture.listen_port>`。
 
 ## 产物
 
