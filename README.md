@@ -110,19 +110,19 @@ python -c "import sqlite3;c=sqlite3.connect(r'<项目根>/test/API_TEST/.index/a
 | `paths.api_method_dirs` | 接口方法层目录（放 `*_api.py`） | 相对 `project_root` |
 | `paths.test_case_dirs` | 用例目录（放 `test_*.py`） | 相对 `project_root` |
 | `paths.pytest_workdir` | 跑 pytest 的工作目录 | 生成命令时自动 `cd` 到这里 |
-| `paths.runtime_temp_dir` | 运行时临时目录 | 抓包等中间产物用（本版预留） |
+| `paths.runtime_temp_dir` | 运行时临时目录 | 抓包/源码分析等中间产物用 |
 | `api_index.db_path` | 索引 SQLite 库路径 | 团队共享资产，建议入库 |
 | `api_index.scan_dirs` | 扫描器要扫的目录 | **必须存在**，否则报 `ConfigError` |
 | `api_index.extract_rules_path` | 提取规则文件路径 | 由 `append_extract_rule.py` 追加 |
 | `pytest.pythonpath` | 执行 pytest 时的 `PYTHONPATH` | 默认 `.` |
 | `pytest.command_template` | pytest 命令模板 | `{target}` 是占位符 |
-| `capture.listen_port` | 抓包监听端口 | 抓包模块用（本版未实现） |
-| `capture.baseurl` | 被测服务地址 | 接入引导会问 |
-| `capture.include_prefixes` | 只抓这些前缀的请求 | 抓包模块用（本版未实现） |
-| `capture.exclude_prefixes` | 排除这些前缀 | 抓包模块用（本版未实现） |
-| `capture.login_path_hints` | 登录接口路径提示 | 抓包模块用（本版未实现） |
-| `capture.session_cookie_names` | 会话 cookie 名 | 抓包模块用（本版未实现） |
-| `source_analysis` | 源码分析配置（语言/根目录） | 源码分析模块用（本版未实现） |
+| `capture.listen_port` | 抓包监听端口 | 抓包服务用；可用环境变量 `CAPTURE_PORT` 临时覆盖 |
+| `capture.baseurl` | 被测服务地址 | 接入引导会问；抓包只录该 host |
+| `capture.include_prefixes` | 只抓这些前缀的请求 | 抓包服务用（白名单） |
+| `capture.exclude_prefixes` | 排除这些前缀 | 抓包服务用（黑名单） |
+| `capture.login_path_hints` | 登录接口路径提示 | 命中即视为登录请求，默认不记录 |
+| `capture.session_cookie_names` | 会话 cookie 名 | 本版仅解析保留，暂未参与过滤 |
+| `source_analysis` | 源码分析配置（`language` / `roots` / `url_prefix_map`） | `tools/analyze_source.py` 用 |
 
 ## 版本管理建议
 
@@ -132,17 +132,22 @@ python -c "import sqlite3;c=sqlite3.connect(r'<项目根>/test/API_TEST/.index/a
 
 （`paths.runtime_temp_dir` 这类运行时中间产物目录则应加入 `.gitignore`，不要提交。）
 
-## 本版不含的能力
+## 抓包驱动与源码分析
 
-以下能力**在第二份计划中实现，当前版本没有**：
+除了「参考已有用例」「cURL 手工」两种方式，本版还实现了两种**成批发现接口**的方式：
 
-- **抓包驱动**（`capture/`）：监听请求、从真实流量发现接口。
-- **源码分析**（`analyzers/`）：从 Java / Python / Node 源码成批导出接口。
-- 依赖上述两者的 `match_captures.py`、`preflight_check.py` 等。
+- **抓包驱动**（`capture/`）：用 mitmproxy 把真实 HTTP 请求录成 JSONL，再比对索引生成勾选草稿。
+  启动 `capture/start.bat`（端口来自 `capture.listen_port`，可用 `CAPTURE_PORT` 覆盖），
+  产物 `<runtime_temp_dir>/latest.jsonl`，比对用 `python tools/match_captures.py` →
+  `capture_selection.md`；服务状态用 `python tools/check_capture_server.py --config <配置>` 检查。
+  详见 `doc/mode_capture_driven.md`。
+- **源码分析**（`analyzers/`）：支持 Java/Spring、Python（FastAPI/Flask/Django）、
+  Node（Express/NestJS），用 `python tools/analyze_source.py [--language ...] [--dry-run]`
+  成批导出接口，产物 `<runtime_temp_dir>/source_analysis_result.md`。详见 `doc/mode_source_analysis.md`。
 
-现在遇到**只能靠抓包或源码**才能发现的接口，请如实告诉用户“该能力尚未实现”，
-不要假装能做。本版可用的新增方式只有「参考已有用例」与「cURL 手工」两种
-（见 `SKILL.md` 的“四种新增方式”表）。
+这两种方式产出的都是**待测接口清单草稿**——必须交给用户勾选后，才继续写用例（草稿门禁）。
+
+预检索引时效用 `python tools/preflight_check.py`（只读不写）。四种新增方式与工具速查见 `SKILL.md`。
 
 ## 许可
 

@@ -99,5 +99,5 @@
 | `api_index.extract_rules_path` | `extract_rules_path` |
 | `pytest.pythonpath` | `pytest_pythonpath` |
 | `pytest.command_template` | `pytest_command_template` |
-| `capture.*` | `capture`（dict，抓包相关，暂未实现） |
-| `source_analysis.*` | `source_analysis`（dict，源码分析相关，暂未实现） |
+| `capture.*` | `capture`（dict，抓包驱动相关，见 `doc/mode_capture_driven.md`） |
+| `source_analysis.*` | `source_analysis`（dict，源码分析相关，见 `doc/mode_source_analysis.md`） |

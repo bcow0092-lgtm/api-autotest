@@ -20,6 +20,10 @@ DOC_FILES = [
     "doc/mode_reference_case.md",
     "doc/mode_curl_manual.md",
     "doc/troubleshooting.md",
+    "doc/mode_capture_driven.md",
+    "doc/mode_source_analysis.md",
+    "doc/maintenance_context.md",
+    "doc/mode_maintenance_pytest_driven.md",
 ]
 
 
@@ -66,3 +70,9 @@ def test_skill_documents_explicit_shell_for_pytest_command():
     text = read("SKILL.md")
     assert "build_pytest_command" in text
     assert "shell" in text
+
+
+def test_docs_no_longer_claim_capture_and_analysis_are_unimplemented():
+    text = read("SKILL.md")
+    # 第一份计划的 SKILL.md 用「规划中」标注抓包与源码分析尚未实现，本次已实现，该标记必须消失
+    assert "规划中" not in text

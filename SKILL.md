@@ -34,7 +34,8 @@ description: 通用接口自动化测试 skill，面向 python + pytest + reques
 
 按顺序执行，**门禁处硬停**，等用户确认再往下走：
 
-0. **预检** —— 定位 `.api-autotest/config.json`；检查索引时效（`last_seen` 超过 7 天则提示刷新）。
+0. **预检** —— 定位 `.api-autotest/config.json`；用 `tools/preflight_check.py` 检查索引时效
+   （只读不写，`last_seen` 超过 7 天则提示刷新）。
 1. **判定任务类型** —— 新增 / 维护。
    用户说了“修复 / 同步最新链路 / 回归更新 / 报错了”即判为**维护**；
    说了“给某个接口写测试 / 补用例 / 新增覆盖”即判为**新增**；
@@ -55,13 +56,12 @@ description: 通用接口自动化测试 skill，面向 python + pytest + reques
 
 | 方式 | 适用场景 | 输入 | 详见 |
 |---|---|---|---|
-| 抓包驱动 | 黑盒、没有文档，只能看真实请求 | 抓包产物 | 规划中（见计划第二份），本版未实现 |
+| 抓包驱动 | 黑盒、没有文档，只能看真实请求 | 抓包产物（`latest.jsonl`） | `doc/mode_capture_driven.md` |
 | 参考已有用例 | 项目里已有相似实现，可抄骨架 | 已有文件 + 函数名 | `doc/mode_reference_case.md` |
 | cURL 手工 | 手上已经有一条能跑的请求 | cURL + 真实响应 | `doc/mode_curl_manual.md` |
-| 源码分析 | 有后端源码，想成批导出接口 | 源码目录（Java / Python / Node） | 规划中（见计划第二份），本版未实现 |
+| 源码分析 | 有后端源码，想成批导出接口 | 源码目录（Java / Python / Node） | `doc/mode_source_analysis.md` |
 
-> 抓包驱动与源码分析所需的 `capture/`、`analyzers/` 模块在**计划第二份**才实现，当前版本没有。
-> 现在遇到只能靠抓包或源码才能发现的接口，请如实告诉用户“该能力尚未实现”，不要假装能做。
+> 抓包驱动与源码分析产出的都是**待测接口清单草稿**，必须经用户勾选后才写用例（草稿门禁，见主流程第 4 步）。
 
 ## 新增前必做：查重链
 
@@ -137,6 +137,10 @@ cmd = build_pytest_command(
 | `tools/init_project.py` | 接入引导：探测结构、生成配置与骨架 | `--project-root` / `--answers` / `--dry-run` / `--force` |
 | `tools/scan_api_methods.py` | 扫描接口方法层，更新索引 | `--config` / `--full` / `--dry-run` |
 | `tools/append_extract_rule.py` | 追加提取规则并按新规则重扫 | `--config` / `--rule` / `--apply` |
+| `tools/analyze_source.py` | 源码分析：成批导出接口，产出待测清单草稿 | `--config` / `--language` / `--out` / `--dry-run` |
+| `tools/match_captures.py` | 抓包与索引比对，生成勾选草稿 | `--config` / `--jsonl` / `--out` |
+| `tools/check_capture_server.py` | 检查抓包服务是否在跑 | `--config` |
+| `tools/preflight_check.py` | 预检：索引时效（只读不写） | `--config` / `--max-days` |
 
 模块与函数的完整清单、设计理由见 `doc/core_principles.md`。
 
@@ -150,4 +154,8 @@ cmd = build_pytest_command(
 | `doc/preflight_gates_maintenance.md` | 维护任务的“门禁”怎么走 |
 | `doc/mode_reference_case.md` | 选定“参考已有用例”方式时 |
 | `doc/mode_curl_manual.md` | 选定“cURL 手工”方式时 |
+| `doc/mode_capture_driven.md` | 选定“抓包驱动”方式时 |
+| `doc/mode_source_analysis.md` | 选定“源码分析”方式时 |
+| `doc/maintenance_context.md` | 判为维护任务，想先理解三分法与纪律时 |
+| `doc/mode_maintenance_pytest_driven.md` | 维护任务的执行步骤（pytest 驱动修复） |
 | `doc/troubleshooting.md` | pytest 失败时，按优先级排查 |
