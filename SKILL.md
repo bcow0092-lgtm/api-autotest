@@ -14,6 +14,12 @@ description: 通用接口自动化测试 skill，面向 python + pytest + reques
 因此它不假设、也不推导任何项目目录结构：**项目结构一律由项目自己的
 `.api-autotest/config.json` 声明**。读不到这份配置就无法工作——这是设计如此，不是缺陷。
 
+> **路径约定**：本文档里出现的 `tools/`、`capture/`、`analyzers/`、`doc/` 一律指
+> **本 skill 安装目录**下的子目录（默认 `~/.claude/skills/api-autotest/`），
+> **不是被测项目里的同名目录**。照抄执行时，请把脚本路径换成 skill 目录下的**绝对路径**
+> （`.bat` 已用 `%~dp0` 自定位，可直接用）；而**工作目录**通常要落在被测项目的根，
+> 因为配置 `.api-autotest/config.json` 是按 CWD 向上查找的。
+
 ## 第一步永远是：定位项目
 
 主流程的第 0 步是**预检**，核心动作是定位配置：
