@@ -24,7 +24,8 @@ from skill_utils.text_io import read_text_utf8
 _MAPPING_ANNOTATION = re.compile(
     r"@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping)\b"
 )
-_PUBLIC_SIGNATURE = re.compile(r"\bpublic\s+(.+?)\s+(\w+)\s*\(([^)]*)\)")
+_SIGNATURE_LINE = re.compile(r"\bpublic\b")
+_SIGNATURE_HEAD = re.compile(r"\bpublic\s+(?P<ret>.+?)\s+(?P<name>\w+)\s*\(")
 _JAVADOC = re.compile(r"/\*\*(.*?)\*/", re.S)
 _REQUEST_METHOD_ATTR = re.compile(r"RequestMethod\.(GET|POST|PUT|DELETE|PATCH)")
 _METHOD_ATTR_STRING = re.compile(r'method\s*=\s*"?(GET|POST|PUT|DELETE|PATCH)"?', re.I)
@@ -65,17 +66,12 @@ def _parse(source: str, file_path: str, url_prefix_map: dict) -> list[ApiEndpoin
             index += 1
             continue
 
-        signature_index = _find_signature(lines, index)
-        if signature_index == -1:
+        found = _find_signature(lines, index)
+        if found is None:
             index += 1
             continue
+        signature_index, return_type, handler, raw_params = found
 
-        signature = _PUBLIC_SIGNATURE.search(lines[signature_index])
-        if not signature:
-            index += 1
-            continue
-
-        raw_params = signature.group(3)
         block_end = _find_block_end(lines, signature_index)
         method_path = first_string_arg(annotation_args(line))
         endpoint_path = apply_prefix_map(join_url_paths(class_mapping, method_path), url_prefix_map)
@@ -85,16 +81,16 @@ def _parse(source: str, file_path: str, url_prefix_map: dict) -> list[ApiEndpoin
             ApiEndpoint(
                 method=method,
                 path=endpoint_path,
-                handler=signature.group(2),
+                handler=handler,
                 file_path=file_path,
                 line_no=signature_index + 1,
                 doc=_javadoc_of(lines, index),
                 params=params,
-                category=classify_endpoint(method, signature.group(2), endpoint_path, params),
+                category=classify_endpoint(method, handler, endpoint_path, params),
                 extra={
                     "class_mapping": class_mapping,
                     "method_mapping": method_path,
-                    "return_type": signature.group(1).strip(),
+                    "return_type": return_type,
                 },
             )
         )
@@ -121,13 +117,57 @@ def _request_mapping_method(line: str) -> str:
     return found.group(1).upper() if found else ""
 
 
-def _find_signature(lines: list[str], annotation_index: int) -> int:
-    """从注解行往下最多找 12 行，定位方法签名。"""
+def _parens_balanced(text: str) -> bool:
+    return text.count("(") > 0 and text.count("(") == text.count(")")
+
+
+def _gather_signature(lines: list[str], start: int, max_lines: int = 8) -> str:
+    """从 start 行起逐行拼接，直到参数括号配平——方法签名常常跨行。"""
+    collected = ""
+    for index in range(start, min(start + max_lines, len(lines))):
+        collected = f"{collected} {lines[index].strip()}".strip()
+        if _parens_balanced(collected):
+            break
+    return collected
+
+
+def _split_signature(text: str) -> tuple[str, str, str] | None:
+    """把签名拆成 (返回类型, 方法名, 参数字符串)。
+
+    参数按**括号深度配平**截取，这样参数上的注解（如
+    `@NotNull(message = "...")`）不会把参数表提前截断。
+    """
+    match = _SIGNATURE_HEAD.search(text)
+    if not match:
+        return None
+    depth = 1
+    index = match.end()
+    start = index
+    while index < len(text) and depth:
+        char = text[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        index += 1
+    if depth != 0:
+        return None
+    return match.group("ret").strip(), match.group("name"), text[start:index - 1]
+
+
+def _find_signature(lines: list[str], annotation_index: int):
+    """从注解行往下最多找 12 行，定位方法签名。
+
+    返回 (签名起始行号, 返回类型, 方法名, 参数字符串)；找不到返回 None。
+    """
     limit = min(annotation_index + 12, len(lines))
     for probe in range(annotation_index + 1, limit):
-        if _PUBLIC_SIGNATURE.search(lines[probe]):
-            return probe
-    return -1
+        if not _SIGNATURE_LINE.search(lines[probe]):
+            continue
+        split = _split_signature(_gather_signature(lines, probe))
+        if split:
+            return (probe, *split)
+    return None
 
 
 def _find_block_end(lines: list[str], signature_index: int) -> int:
@@ -153,7 +193,7 @@ def _javadoc_of(lines: list[str], annotation_index: int) -> str:
         buffer.insert(0, stripped)
         if stripped.startswith("/*") or stripped.startswith("/**"):
             break
-    text = " ".join(buffer)
+    text = "\n".join(buffer)
     match = _JAVADOC.search(text)
     if not match:
         return ""

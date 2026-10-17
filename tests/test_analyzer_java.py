@@ -140,3 +140,38 @@ def test_detect_returns_false_without_controllers(tmp_path):
     (root / "src" / "Plain.java").write_text("public class Plain {}", encoding="utf-8")
 
     assert JavaSpringAnalyzer().detect(root) is False
+
+
+WRAPPED_SIGNATURE_SAMPLE = '''
+@RestController
+@RequestMapping("/wms/checkOrder")
+public class CheckOrderController {
+
+    /**
+     * 获取库存盘点单据详细信息
+     *
+     * @param id 主键
+     */
+    @GetMapping("/{id}")
+    public R<CheckOrderVo> getInfo(@NotNull(message = "主键不能为空")
+                                   @PathVariable Long id) {
+        return R.ok(checkOrderService.queryById(id));
+    }
+}
+'''
+
+
+def test_javadoc_takes_first_meaningful_line():
+    endpoints = parse_java_source(WRAPPED_SIGNATURE_SAMPLE, "CheckOrderController.java")
+
+    assert endpoints[0].doc == "获取库存盘点单据详细信息"
+
+
+def test_wrapped_signature_params_are_not_truncated():
+    endpoints = parse_java_source(WRAPPED_SIGNATURE_SAMPLE, "CheckOrderController.java")
+    params = endpoints[0].params
+
+    assert len(params) == 1
+    assert params[0]["kind"] == "普通参数"
+    assert params[0]["name"] == "id"
+    assert params[0]["type"] == "Long"
