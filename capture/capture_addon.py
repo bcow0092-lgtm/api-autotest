@@ -39,8 +39,6 @@ BINARY_CONTENT_TYPE_PREFIXES = (
     "application/vnd.openxmlformats-", "image/", "video/", "audio/",
 )
 
-FALLBACK_LOGIN_HINTS = ("/login", "/logout", "/auth/token")
-
 MAX_BODY_BYTES = 1024 * 1024
 DEFAULT_JSONL_NAME = "latest.jsonl"
 
