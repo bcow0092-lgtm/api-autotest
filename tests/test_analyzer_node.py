@@ -142,6 +142,19 @@ def test_single_arg_get_on_a_router_is_not_a_route():
     assert parse_node_source(source, "r.js") == []
 
 
+def test_express_router_with_options_binding_is_recognized():
+    """`express.Router({ mergeParams: true })` 是常见写法，绑定的路由器上路由不能被漏报。"""
+    source = (
+        "const express = require('express')\n"
+        "const api = express.Router({ mergeParams: true })\n"
+        "api.get('/opt', h)\n"
+    )
+
+    endpoints = parse_node_source(source, "routes/opt.js")
+
+    assert [(e.method, e.path) for e in endpoints] == [("GET", "/opt")]
+
+
 def test_nest_multiple_controllers_are_skipped():
     source = '''
 import { Controller, Get } from '@nestjs/common'

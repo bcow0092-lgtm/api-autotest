@@ -22,7 +22,7 @@ _EXPRESS_ROUTE = re.compile(
     r"(?P<quote>['\"`])(?P<path>[^'\"`]*)(?P=quote)\s*,"
 )
 _ROUTER_BINDING = re.compile(
-    r"\b(?:const|let|var)\s+(?P<name>[A-Za-z_$]\w*)\s*=\s*(?:express\s*\(\s*\)|express\.Router\s*\(\s*\))"
+    r"\b(?:const|let|var)\s+(?P<name>[A-Za-z_$]\w*)\s*=\s*(?:express\s*\(\s*\)|express\.Router\s*\([^)]*\))"
 )
 _DEFAULT_ROUTER_NAMES = {"router", "app"}
 _NEST_CONTROLLER = re.compile(
