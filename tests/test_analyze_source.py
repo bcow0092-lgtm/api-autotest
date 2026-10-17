@@ -32,6 +32,26 @@ def test_cross_check_on_empty_index_treats_all_as_new():
     assert all(item["impls"] == [] for item in result)
 
 
+def test_cross_check_matches_literal_index_against_placeholder_source():
+    """索引里存的 api_url 是字面量、pure_path 是归一化路径；源码分析产出的是占位符路径。
+    匹配方向搞反（拿 api_url 当 pattern）就永远配不上，会把“已实现”标成“未覆盖”。"""
+    endpoints = [_endpoint("GET", "/wms/checkOrder/{id}")]
+    records = [
+        {
+            "api_url": "/wms/checkOrder/123",
+            "pure_path": "/wms/checkOrder/{param}",
+            "method": "GET",
+            "api_name": "getInfo",
+            "file": "api/check.py",
+            "line": 3,
+        }
+    ]
+
+    result = cross_check(endpoints, records)
+
+    assert result[0]["impls"], "字面量索引应当能匹配占位符源码路径"
+
+
 def test_render_draft_lists_uncovered_first():
     endpoints = cross_check([_endpoint("GET", "/wms/list")], [])
     text = render_draft(endpoints, {"source": "java", "roots": ["src"], "index_path": "db"})
@@ -94,3 +114,29 @@ public class DemoController {
     assert result["endpoints"] == 1
     assert Path(result["draft_path"]).is_file()
     assert "GET `/demo/list`" in Path(result["draft_path"]).read_text(encoding="utf-8")
+
+
+def test_analyze_source_rejects_missing_root(tmp_path):
+    project = tmp_path / "proj"
+    project.mkdir()
+    idx = tmp_path / "idx"
+    idx.mkdir()
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "project_root": str(project),
+                "paths": {"api_method_dirs": ["."], "pytest_workdir": "."},
+                "api_index": {"scan_dirs": ["."], "db_path": str(idx / "i.sqlite3")},
+                "source_analysis": {"language": "java", "roots": ["nope/does/not/exist"]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        analyze_source(load_config(config_path), dry_run=True)
+    except ValueError as exc:
+        assert "roots" in str(exc)
+    else:
+        raise AssertionError("roots 指向不存在的目录时应当抛 ValueError，而不是静默产出空结果")

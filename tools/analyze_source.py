@@ -25,7 +25,7 @@ from analyzers.java_spring import JavaSpringAnalyzer  # noqa: E402
 from analyzers.node_web import NodeWebAnalyzer  # noqa: E402
 from analyzers.python_web import PythonWebAnalyzer  # noqa: E402
 from skill_utils.api_index_db import list_records  # noqa: E402
-from skill_utils.api_path_match import api_path_matches  # noqa: E402
+from skill_utils.api_path_match import api_path_matches, to_pure_path  # noqa: E402
 from skill_utils.config_loader import ConfigError, load_config  # noqa: E402
 from skill_utils.console_io import configure_stdio  # noqa: E402
 from skill_utils.text_io import write_text_utf8  # noqa: E402
@@ -52,14 +52,24 @@ def pick_analyzer(language: str, project_root: Path):
 
 
 def cross_check(endpoints: list, index_records: list[dict]) -> list[dict]:
-    """把分析出的接口与索引比对，标注哪些已实现、哪些有相似参考。"""
+    """把分析出的接口与索引比对，标注哪些已实现、哪些有相似参考。
+
+    匹配方向：用索引的 `pure_path`（动态段已归一为 {param}）作 pattern，
+    用源码侧 endpoint.path 的 pure_path（占位符如 {id}）作 actual。
+    反过来拿字面量 api_url 当 pattern 时，占位符落在 actual 侧不会被当通配符，
+    会把“已实现”误判成“未覆盖”（spec §4.3 的查重以 pure_path 为准）。
+    """
     result = []
     for endpoint in endpoints:
+        method = endpoint.method.upper()
+        pure_path = to_pure_path(endpoint.path)
         impls = [
             record
             for record in index_records
-            if (record.get("method") or "").upper() == endpoint.method.upper()
-            and api_path_matches(record.get("api_url") or "", endpoint.path)
+            if (record.get("method") or "").upper() == method
+            and api_path_matches(
+                record.get("pure_path") or record.get("api_url") or "", pure_path
+            )
         ]
         tail = endpoint.path.rstrip("/").rsplit("/", 1)[-1].lower()
         similar = [
@@ -157,6 +167,11 @@ def analyze_source(config, *, language: str | None = None, out_path=None, dry_ru
         else Path(root)
         for root in raw_roots
     ]
+    # 与 config_loader 对 api_index.scan_dirs 同款的存在性校验：roots 配错时若静默跑出
+    # 0 接口，会写出一份“看着合法”的空草稿，把配错伪装成成功。
+    missing = [str(root) for root in roots if not root.is_dir()]
+    if missing:
+        raise ValueError(f"source_analysis.roots 中的目录不存在: {', '.join(missing)}")
     endpoints = analyzer.analyze(roots, settings.get("url_prefix_map") or {})
 
     index_records = list_records(config.api_index_db_path)
