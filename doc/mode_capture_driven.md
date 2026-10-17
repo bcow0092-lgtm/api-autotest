@@ -153,12 +153,19 @@ python tools/match_captures.py --config <配置>
 
 ---
 
-## 仍未覆盖（诚实声明）
+## 验收状态与边界（诚实声明）
 
 抓包链路（addon 录制、启停脚本、服务状态检查、比对生成草稿）已实现并通过单元测试，
-**但尚未在真实项目上做过端到端抓包验收**——本机没有针对一个真实被测服务完整跑过
-“启动抓包 → 真实操作 → `match_captures.py` 比对 → 用户勾选”这条链路。第一次在真项目上用，
-请把它当作一条待验证的路径，遇到问题按 `doc/troubleshooting.md` 排查并如实反馈。
+**并做过一次最小的真实端到端验收**：本地起一个 `python -m http.server` 当被测系统，
+按项目配置启动 mitmdump，用 `curl -x` 经代理发一条真实请求（`GET /wms/probe`），
+addon 把请求如实落盘到 `latest.jsonl`（`method=GET`、`pure_path=/wms/probe`、`status=404`），
+再用 `match_captures.py` 读出并生成 `capture_selection.md` 勾选草稿——即“启动抓包 → 真实请求
+→ 录 JSONL → 比对成草稿”这条链路已跑通。
+
+**验收边界**：这是**被测系统本地化**（`http.server`）的一次最小端到端验证，**不是**在一个
+生产级真实项目上、对着真实前端操作跑过的完整验收；“启动抓包 → 用户在真实前端操作 → 大批量
+录制 → 勾选”这一更大规模、更贴近实战的路径仍待验证。第一次在真项目上用，遇到问题按
+`doc/troubleshooting.md` 排查并如实反馈。
 
 ---
 
