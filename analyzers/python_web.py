@@ -28,13 +28,15 @@ _ROUTER_PREFIX = re.compile(
 )
 _FLASK_ROUTE = re.compile(
     r"@\s*(?P<obj>[A-Za-z_]\w*)\.route\s*\(\s*(?P<quote>['\"])(?P<path>[^'\"]*)(?P=quote)"
-    r"(?P<rest>[^)]*)\)",
+    r"(?P<rest>(?:\([^)]*\)|[^)])*)\)",
     re.S,
 )
-_FLASK_METHODS = re.compile(r"methods\s*=\s*\[([^\]]*)\]")
+_FLASK_METHODS = re.compile(r"methods\s*=\s*[\[(]([^\])]*)[\])]")
 _DJANGO_PATH = re.compile(
     r"\b(?:re_)?path\s*\(\s*(?P<quote>['\"])(?P<path>[^'\"]*)(?P=quote)\s*,\s*(?P<view>[^,)]+)"
 )
+_DJANGO_URLPATTERNS = re.compile(r"\burlpatterns\s*=")
+_DJANGO_INCLUDE = re.compile(r"^\s*include\s*\(")
 _DEF_NAME = re.compile(r"^\s*(?:async\s+)?def\s+(\w+)\s*\(", re.M)
 
 _DJANGO_CONVERTER = re.compile(r"<(?:(?P<conv>[a-zA-Z]+):)?(?P<name>[a-zA-Z_]\w*)>")
@@ -111,12 +113,16 @@ def _parse_flask(source: str, file_path: str, docs: dict[str, str]) -> list[ApiE
 
 
 def _parse_django(source: str, file_path: str) -> list[ApiEndpoint]:
+    if not _DJANGO_URLPATTERNS.search(source):
+        return []
     endpoints = []
     for match in _DJANGO_PATH.finditer(source):
+        view = match.group("view").strip()
+        if _DJANGO_INCLUDE.match(view):
+            continue  # include(...) 是路由挂载，不是接口
         raw_path = match.group("path")
         path = normalize_path(_DJANGO_CONVERTER.sub(lambda m: "{%s}" % (m.group("name") or "param"), raw_path))
-        view = match.group("view").strip()
-        handler = view.rsplit(".", 1)[-1]
+        handler = view.rsplit(".", 1)[-1].strip("'\"")
         endpoints.append(
             ApiEndpoint(
                 method="ANY",
@@ -165,7 +171,11 @@ class PythonWebAnalyzer:
             if any(part in {".venv", "venv", "node_modules", "site-packages"} for part in python_file.parts):
                 continue
             source = read_text_utf8(python_file)
-            if _FASTAPI_ROUTE.search(source) or _FLASK_ROUTE.search(source) or _DJANGO_PATH.search(source):
+            if (
+                _FASTAPI_ROUTE.search(source)
+                or _FLASK_ROUTE.search(source)
+                or (_DJANGO_URLPATTERNS.search(source) and _DJANGO_PATH.search(source))
+            ):
                 return True
         return False
 

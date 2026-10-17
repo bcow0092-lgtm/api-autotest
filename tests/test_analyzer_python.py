@@ -115,3 +115,56 @@ def test_url_prefix_map_applied():
         ("POST", "/api/items/create"),
         ("DELETE", "/api/items/{item_id}"),
     ]
+
+
+def test_django_gate_ignores_files_without_urlpatterns():
+    source = '''
+def path(a, b):
+    return os.path.join(a, b)
+
+
+CONFIG = path("config", "base")
+'''
+
+    assert parse_python_source(source, "util.py") == []
+
+
+def test_django_ignores_include_mounts():
+    source = '''
+from django.urls import path, include
+
+urlpatterns = [
+    path("api/", include("app.urls")),
+    path("users/", views.user_list, name="user_list"),
+]
+'''
+    endpoints = parse_python_source(source, "urls.py")
+
+    assert [(e.method, e.path) for e in endpoints] == [("ANY", "/users")]
+
+
+def test_flask_tuple_methods_are_supported():
+    source = '''
+from flask import Flask
+
+app = Flask(__name__)
+
+
+@app.route("/orders", methods=("GET", "POST"))
+def orders():
+    return "ok"
+'''
+    endpoints = parse_python_source(source, "app.py")
+
+    assert sorted(e.method for e in endpoints) == ["GET", "POST"]
+
+
+def test_detect_returns_false_for_non_django_path_calls(tmp_path):
+    root = tmp_path / "proj"
+    (root / "lib").mkdir(parents=True)
+    (root / "lib" / "util.py").write_text(
+        'def path(a, b):\n    return a + b\n\n\nCONFIG = path("config", "base")\n',
+        encoding="utf-8",
+    )
+
+    assert PythonWebAnalyzer().detect(root) is False
