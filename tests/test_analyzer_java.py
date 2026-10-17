@@ -175,3 +175,33 @@ def test_wrapped_signature_params_are_not_truncated():
     assert params[0]["kind"] == "普通参数"
     assert params[0]["name"] == "id"
     assert params[0]["type"] == "Long"
+
+
+DOCUMENTED_THEN_UNDOCUMENTED = '''
+@RestController
+@RequestMapping("/api")
+public class DemoController {
+
+    /**
+     * 删除条目
+     */
+    @DeleteMapping("/del")
+    public R<Void> remove(Long id) {
+        return null;
+    }
+
+    @PostMapping("/update/orderNum")
+    public R<Void> updateOrderNum(Long id) {
+        return null;
+    }
+}
+'''
+
+
+def test_undocumented_method_does_not_inherit_previous_javadoc():
+    """没有 Javadoc 的方法必须拿到空描述——绝不允许继承上一条方法的注释。"""
+    endpoints = parse_java_source(DOCUMENTED_THEN_UNDOCUMENTED, "DemoController.java")
+    by_path = {e.path: e for e in endpoints}
+
+    assert by_path["/api/del"].doc == "删除条目"
+    assert by_path["/api/update/orderNum"].doc == ""

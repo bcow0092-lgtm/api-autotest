@@ -186,15 +186,24 @@ def _find_block_end(lines: list[str], signature_index: int) -> int:
 
 
 def _javadoc_of(lines: list[str], annotation_index: int) -> str:
-    """向上回溯找紧邻的 Javadoc，取第一行非空、非 @ 标记的内容。"""
-    buffer: list[str] = []
-    for index in range(annotation_index - 1, max(annotation_index - 30, -1), -1):
-        stripped = lines[index].strip()
-        buffer.insert(0, stripped)
-        if stripped.startswith("/*") or stripped.startswith("/**"):
-            break
-    text = "\n".join(buffer)
-    match = _JAVADOC.search(text)
+    """向上回溯找**紧贴**注解的 Javadoc，取第一行非空、非 @ 标记的内容。
+
+    先跳过紧邻的其他注解行（@Xxx），此时上一行必须是 Javadoc 的结束行 */；
+    否则说明这个方法没有 Javadoc——不能继续往上找，那会把上一条方法的注释吃进来。
+    """
+    index = annotation_index - 1
+    while index >= 0 and lines[index].strip().startswith("@"):
+        index -= 1
+    if index < 0 or not lines[index].strip().endswith("*/"):
+        return ""
+
+    end = index
+    while index >= 0 and not lines[index].strip().startswith("/*"):
+        index -= 1
+    if index < 0:
+        return ""
+
+    match = _JAVADOC.search("\n".join(lines[index:end + 1]))
     if not match:
         return ""
     for raw_line in match.group(1).splitlines():
