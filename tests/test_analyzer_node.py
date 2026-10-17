@@ -113,3 +113,60 @@ def test_express_router_prefix_is_not_inferred():
     endpoints = parse_node_source(EXPRESS, "routes/items.js")
 
     assert endpoints[0].path == "/list"
+
+
+def test_express_file_with_incidental_single_arg_get_calls_stays_clean():
+    """真实路由文件里 req.get / res.get / app.get / config.get 遍地都是，且都是单参调用；
+    路由注册必然是"路径 + 处理函数"两个参数。"""
+    source = '''
+const express = require('express')
+const router = express.Router()
+const config = require('config')
+
+router.get('/orders', (req, res) => {
+  const token = req.get('Authorization')
+  const env = app.get('env')
+  const host = config.get('db.host')
+  res.get('Content-Type')
+  res.json({ token, env, host })
+})
+'''
+    endpoints = parse_node_source(source, "routes/orders.js")
+
+    assert [(e.method, e.path) for e in endpoints] == [("GET", "/orders")]
+
+
+def test_single_arg_get_on_a_router_is_not_a_route():
+    source = "const express = require('express')\nconst router = express.Router()\nrouter.get('/health')\n"
+
+    assert parse_node_source(source, "r.js") == []
+
+
+def test_nest_multiple_controllers_are_skipped():
+    source = '''
+import { Controller, Get } from '@nestjs/common'
+
+@Controller('a')
+export class AController {
+  @Get('x')
+  ax() { return 1 }
+}
+
+@Controller('b')
+export class BController {
+  @Get('y')
+  by() { return 2 }
+}
+'''
+    assert parse_node_source(source, "two.controller.ts") == []
+
+
+def test_detect_finds_express_in_a_typescript_project(tmp_path):
+    root = tmp_path / "proj"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "routes.ts").write_text(
+        "import express from 'express'\nconst router = express.Router()\nrouter.get('/a', handler)\n",
+        encoding="utf-8",
+    )
+
+    assert NodeWebAnalyzer().detect(root) is True
