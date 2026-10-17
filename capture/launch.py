@@ -5,10 +5,11 @@
 配置读不到（ConfigError）时**回落默认端口并告警**，不崩——检查/启停服务不该被
 配置缺失挡住。本文件只负责拉起 mitmdump 进程，不 import mitmproxy。
 
-用法（在项目根目录执行，配置沿 cwd 向上查找）：
-    python capture/launch.py start     # 前台运行 mitmdump，监听配置端口
-    python capture/launch.py stop      # 杀掉监听该端口的进程
-    python capture/launch.py restart   # 先 stop 再 start
+用法：**在项目根目录执行**（配置沿 cwd 向上查找）；脚本在 skill 目录，要用**绝对路径**调用，
+别 cd 到 skill 目录（切走就读不到项目配置）：
+    python "<skill>/capture/launch.py" start     # 前台运行 mitmdump，监听配置端口
+    python "<skill>/capture/launch.py" stop      # 杀掉监听该端口的进程
+    python "<skill>/capture/launch.py" restart   # 先 stop 再 start
 """
 
 from __future__ import annotations

@@ -137,7 +137,8 @@ python -c "import sqlite3;c=sqlite3.connect(r'<项目根>/test/API_TEST/.index/a
 除了「参考已有用例」「cURL 手工」两种方式，本版还实现了两种**成批发现接口**的方式：
 
 - **抓包驱动**（`capture/`）：用 mitmproxy 把真实 HTTP 请求录成 JSONL，再比对索引生成勾选草稿。
-  启动 `capture/start.bat`（端口来自 `capture.listen_port`，可用 `CAPTURE_PORT` 覆盖），
+  启动 skill 目录里的 `capture/start.bat`（**在项目根目录执行、脚本用绝对路径**；
+  端口来自 `capture.listen_port`，可用 `CAPTURE_PORT` 覆盖），
   产物 `<runtime_temp_dir>/latest.jsonl`，比对用 `python tools/match_captures.py` →
   `capture_selection.md`；服务状态用 `python tools/check_capture_server.py --config <配置>` 检查。
   详见 `doc/mode_capture_driven.md`。

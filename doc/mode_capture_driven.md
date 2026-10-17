@@ -26,22 +26,34 @@ mitmdump --version
 
 三个批处理脚本都委派给 `capture/launch.py`，由它统一读配置、决定端口：
 
-| 脚本 | 作用 |
+| 脚本（位于 skill 目录 `capture/` 下） | 作用 |
 |---|---|
-| `capture/start.bat` | 前台运行 `python capture/launch.py start`（即 `mitmdump -s capture_addon.py --listen-port <端口>`） |
-| `capture/stop.bat` | 运行 `python capture/launch.py stop`：按端口查监听进程并杀掉 |
-| `capture/restart.bat` | 运行 `python capture/launch.py restart`：先 stop 再 start |
+| `start.bat` | 前台运行 `mitmdump -s capture_addon.py --listen-port <端口>` |
+| `stop.bat` | 按端口查监听进程并杀掉 |
+| `restart.bat` | 先 stop 再 start |
 
-等价的手工命令（在**项目根目录**执行，配置沿当前工作目录向上查找）：
+> ⚠️ **两个前提别踩反**：`capture/` 在 **skill 目录**里，不在你的项目里；而脚本又**必须
+> 在项目根目录运行**（它从当前工作目录向上找 `.api-autotest/config.json`）。所以
+> `python capture/launch.py start` 这种**相对路径写法在你项目根下必然失败**——你的项目根下
+> 没有 `capture/` 这个目录。正确姿势是：**工作目录留在项目根 + 脚本用绝对路径**。
+> 不要 `cd` 到 skill 目录，切走就读不到项目配置了。
 
+在**你的项目根目录**下，用绝对路径执行（bash；`<skill>` 换成 skill 安装目录）：
+
+```bash
+python "<skill>/capture/launch.py" start
+python "<skill>/capture/launch.py" stop
+python "<skill>/capture/launch.py" restart
 ```
-python capture/launch.py start
-python capture/launch.py stop
-python capture/launch.py restart
+
+Windows 上也可直接调用批处理（`.bat` 用 `%~dp0` 自定位脚本、**不切目录**，在项目根跑正好）：
+
+```bat
+:: 在**你的项目根目录**下执行
+C:\Users\<你>\.claude\skills\api-autotest\capture\start.bat
 ```
 
-> 请务必在项目根目录启动，否则按 CWD 向上找不到 `.api-autotest/config.json`，
-> 会回落默认端口并打印告警。
+> 一定要在项目根启动，否则按 CWD 向上找不到 `.api-autotest/config.json`，会回落默认端口并打印告警。
 
 ### 端口
 
@@ -51,11 +63,11 @@ python capture/launch.py restart
 2. 配置里的 `capture.listen_port`；
 3. 默认 `12138`。
 
-所以临时换端口不用改配置，用环境变量即可：
+所以临时换端口不用改配置，用环境变量即可（仍在**项目根目录**下、脚本用绝对路径）：
 
-```
+```bat
 set CAPTURE_PORT=8899
-capture\start.bat
+C:\Users\<你>\.claude\skills\api-autotest\capture\start.bat
 ```
 
 ### 检查服务是否在跑
@@ -74,8 +86,9 @@ python tools/check_capture_server.py --config <项目根>/.api-autotest/config.j
 | `1` | 服务没在运行（端口无监听） |
 | `2` | **端口被占**（被别的进程监听），**或**显式指定的配置文件非法 |
 
-`2` 是**两种原因共用**的：想区分到底是被占还是配置非法，**要看 stderr**——配置非法会打印
-`ERROR: ...`，端口被占会打印 `PORT_OCCUPIED pid=... exe=...`。不要把它当成“2 只表示端口被占”。
+`2` 是**两种原因共用**的：想区分到底是被占还是配置非法，**要看输出**——配置非法会把
+`ERROR: ...` 打到 **stderr**，端口被占会把 `PORT_OCCUPIED pid=... exe=...` 打到 **stdout**。
+不要把它当成“2 只表示端口被占”。
 （只有**显式传了 `--config`** 且配置非法才返回 `2`；不传 `--config` 时配置读不到会回落默认端口，不报错。）
 
 ---
@@ -85,7 +98,9 @@ python tools/check_capture_server.py --config <项目根>/.api-autotest/config.j
 - `baseurl`：只记录该 host 的请求（留空 = 不过滤 host）。
 - `include_prefixes`：只记录路径命中这些前缀的请求（白名单）。
 - `exclude_prefixes`：排除路径命中这些前缀的请求（黑名单）。
-- `login_path_hints`：命中即视为登录/登出请求，默认不记录（记录里 `is_login=true`）。
+- `login_path_hints`：命中即视为登录/登出请求，**这类请求根本不会落进 JSONL**——
+  在 `should_capture` 阶段就被拦掉。它的用途是过滤登录噪声，而不是“记下来再打标记”
+  （因此落盘记录里的 `is_login` 恒为 false）。
 - `session_cookie_names`：会话 cookie 名。**本版仅解析保留**——addon 目前尚未用它做任何
   过滤或标记，配了不影响行为（声明出来是给后续版本用的）。
 

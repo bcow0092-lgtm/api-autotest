@@ -14,10 +14,16 @@ pip install mitmproxy
 
 监听端口**来自项目配置** `config.capture.listen_port`（即
 `<project>/.api-autotest/config.json` 的 `capture.listen_port`）。三个启停脚本都委派给
-`capture/launch.py`，由它统一读配置、决定端口，所以改配置就能改实际监听端口：
+`capture/launch.py`，由它统一读配置、决定端口，所以改配置就能改实际监听端口。
+
+> ⚠️ `capture/` 在 **skill 目录**里，脚本又**必须在项目根目录运行**（它从当前工作目录
+> 向上找 `.api-autotest/config.json`）。所以别在项目根写 `python capture/launch.py`——
+> 那里没有 `capture/`。正确做法：**工作目录留在项目根 + 脚本用绝对路径**
+> （不要 `cd` 到 skill 目录，切走就读不到项目配置了）。
 
 ```
-python capture/launch.py start
+# 在**项目根目录**下执行；<skill> 换成 skill 安装目录
+python "<skill>/capture/launch.py" start
 ```
 
 端口优先级（`launch.py` 的 `resolve_port`）：
@@ -30,26 +36,26 @@ python capture/launch.py start
 
 ```
 set CAPTURE_PORT=8899
-start.bat
+C:\Users\<你>\.claude\skills\api-autotest\capture\start.bat
 ```
 
 > 配置沿**当前工作目录**向上查找 `.api-autotest/config.json`，所以请在**项目根目录**
-> 执行脚本（或先 `cd` 到项目根），否则会落到默认端口并告警。
+> 执行脚本，否则会落到默认端口并告警。
 
 ## 启停
 
-| 脚本 | 作用 |
+| 脚本（位于本目录） | 作用 |
 | --- | --- |
-| `start.bat` | 前台运行 `python launch.py start`（即 `mitmdump -s capture_addon.py --listen-port <端口>`） |
-| `stop.bat` | 运行 `python launch.py stop`：按端口查 `netstat` 找到监听进程并 `taskkill /F` |
-| `restart.bat` | 运行 `python launch.py restart`：先 stop 再 start |
+| `start.bat` | 前台运行 `mitmdump -s capture_addon.py --listen-port <端口>`（`.bat` 用 `%~dp0` 自定位脚本、**不切目录**） |
+| `stop.bat` | 按端口查 `netstat` 找到监听进程并 `taskkill /F` |
+| `restart.bat` | 先 stop 再 start |
 
-等价的手工命令：
+等价的手工命令（在**项目根目录**下、用**绝对路径**调用；勿用相对路径）：
 
 ```
-python capture/launch.py start
-python capture/launch.py stop
-python capture/launch.py restart
+python "<skill>/capture/launch.py" start
+python "<skill>/capture/launch.py" stop
+python "<skill>/capture/launch.py" restart
 ```
 
 底层仍是 `mitmdump -s capture_addon.py --listen-port <config.capture.listen_port>`。
@@ -74,5 +80,7 @@ python capture/launch.py restart
 
 - `baseurl`：只记录该 host 的请求；
 - `include_prefixes` / `exclude_prefixes`：路径前缀白/黑名单；
-- `login_path_hints`：命中即视为登录请求，默认不记录（记录里 `is_login=true`）。
+- `login_path_hints`：命中即视为登录/登出请求，**这类请求根本不会落进 JSONL**（在
+  `should_capture` 阶段就被拦掉）；它的用途是过滤登录噪声，而非“记下来再打标记”
+  （因此落盘记录里 `is_login` 恒为 false）。
 - 静态资源后缀（`.js` / `.css` / `.png` 等）始终跳过。
