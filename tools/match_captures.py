@@ -33,6 +33,10 @@ DEFAULT_SELECTION_NAME = "capture_selection.md"
 
 
 def load_jsonl(path: str | Path) -> list[dict]:
+    """\u8bfb JSONL\uff1b\u7a7a\u767d\u884c\u3001\u574f\u884c\uff0c\u4ee5\u53ca**\u5408\u6cd5\u4f46\u4e0d\u662f\u5bf9\u8c61**\u7684\u884c\uff08null / [..] / "str"\uff09\u90fd\u8df3\u8fc7\u3002
+
+    \u975e\u5bf9\u8c61\u884c\u82e5\u4e0d\u6321\u4f4f\uff0c\u4f1a\u5728\u4e0b\u6e38 `record.get(...)` \u5904\u629b AttributeError\u3002
+    """
     target = Path(path)
     if not target.is_file():
         return []
@@ -42,9 +46,12 @@ def load_jsonl(path: str | Path) -> list[dict]:
         if not stripped:
             continue
         try:
-            records.append(json.loads(stripped))
+            record = json.loads(stripped)
         except json.JSONDecodeError:
             continue
+        if not isinstance(record, dict):
+            continue
+        records.append(record)
     return records
 
 

@@ -31,6 +31,13 @@ def test_apply_prefix_map_strips_matching_prefix():
     assert apply_prefix_map("/wms/list", {"/dev-api": ""}) == "/wms/list"
 
 
+def test_apply_prefix_map_respects_segment_boundary():
+    """前缀匹配必须落在路径段边界上：`/dev-api` 不能命中 `/dev-api-v2/list`。"""
+    assert apply_prefix_map("/dev-api-v2/list", {"/dev-api": ""}) == "/dev-api-v2/list"
+    assert apply_prefix_map("/dev-api/wms/list", {"/dev-api": ""}) == "/wms/list"
+    assert apply_prefix_map("/dev-api", {"/dev-api": ""}) == "/"
+
+
 def test_annotation_args():
     from analyzers.base import annotation_args
 

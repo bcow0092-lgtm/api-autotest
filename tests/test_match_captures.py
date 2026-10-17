@@ -47,6 +47,39 @@ def test_load_jsonl_missing_file_returns_empty(tmp_path):
     assert load_jsonl(tmp_path / "nope.jsonl") == []
 
 
+def test_load_jsonl_skips_valid_json_that_is_not_an_object(tmp_path):
+    """合法 JSON 但非对象（null / [..] / "str"）必须跳过——下游会 .get() 取字段。"""
+    path = tmp_path / "latest.jsonl"
+    path.write_text(
+        json.dumps({"method": "GET", "pure_path": "/a"}, ensure_ascii=False) + "\n"
+        + "null\n"
+        + "[1, 2]\n"
+        + '"str"\n'
+        + "123\n"
+        + json.dumps({"method": "POST", "pure_path": "/b"}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    records = load_jsonl(path)
+
+    assert [r["pure_path"] for r in records] == ["/a", "/b"]
+
+
+def test_dedup_does_not_crash_on_load_jsonl_output(tmp_path):
+    path = tmp_path / "latest.jsonl"
+    path.write_text(
+        json.dumps({"method": "GET", "pure_path": "/a"}, ensure_ascii=False) + "\n"
+        + "null\n"
+        + "[1, 2]\n"
+        + '"str"\n',
+        encoding="utf-8",
+    )
+
+    deduped = dedup_by_method_path(load_jsonl(path))
+
+    assert [r["pure_path"] for r in deduped] == ["/a"]
+
+
 def test_dedup_keeps_last_occurrence():
     records = [
         {"method": "GET", "pure_path": "/a", "status": 500},

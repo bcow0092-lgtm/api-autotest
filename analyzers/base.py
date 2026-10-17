@@ -64,11 +64,14 @@ def apply_prefix_map(path: str, url_prefix_map: dict[str, str]) -> str:
 
     例如 {"/dev-api": ""} 会把 /dev-api/wms/list 变成 /wms/list。
     未命中任何前缀时原样返回。
+
+    前缀按**路径段边界**判定：`/dev-api` 能命中 `/dev-api/wms/list` 与 `/dev-api`，
+    但**不能**命中 `/dev-api-v2/list`（否则会被误剥成 `/-v2/list`）。
     """
     normalized = normalize_path(path)
     for front_prefix, back_prefix in (url_prefix_map or {}).items():
         front = normalize_path(front_prefix)
-        if front == "/" or not normalized.startswith(front):
+        if front == "/" or not (normalized == front or normalized.startswith(front + "/")):
             continue
         rest = normalized[len(front):]
         back = (back_prefix or "").rstrip("/")
