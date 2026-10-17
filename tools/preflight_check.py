@@ -47,7 +47,17 @@ def index_age_days(records: list[dict], today: date | None = None) -> int | None
 
 
 def check_freshness(config, max_days: int = MAX_AGE_DAYS) -> dict:
-    records = list_records(config.api_index_db_path)
+    db_path = Path(config.api_index_db_path)
+    if not db_path.is_file():
+        # 索引库还不存在：直接判定为空。**不要**去调 list_records——它会顺带把目录和空库建出来，
+        # 而本工具的契约是"只读不写"，且主流程第 0 步每次会话都会跑它。
+        return {
+            "status": "empty",
+            "age_days": None,
+            "message": f"接口索引还是空的，建议先跑一次 {SCAN_COMMAND} 建立索引。",
+        }
+
+    records = list_records(db_path)
     if not records:
         return {
             "status": "empty",

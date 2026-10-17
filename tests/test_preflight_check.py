@@ -90,6 +90,19 @@ def test_check_freshness_empty_index(tmp_path):
     assert "scan_api_methods" in result["message"]
 
 
+def test_check_freshness_does_not_create_a_missing_index(tmp_path):
+    """索引库不存在时**不得**把它建出来——本工具契约是只读不写，
+    而主流程第 0 步每次会话都会跑它。"""
+    db = tmp_path / "nested" / "index.sqlite3"
+    config = _config(tmp_path, db)
+
+    result = check_freshness(config)
+
+    assert result["status"] == "empty"
+    assert not db.exists(), "只读的预检不该在项目里留下一个空索引库"
+    assert not db.parent.exists(), "连目录也不该建"
+
+
 def test_main_prints_message_and_returns_zero(tmp_path, capsys):
     db = tmp_path / "index.sqlite3"
     replace_index(str(db), [{"api_url": "/a", "http_method": "GET", "file": "api/a.py", "line": 1}])
